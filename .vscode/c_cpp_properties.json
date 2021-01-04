@@ -6,7 +6,10 @@
                 "/Users/zhangxinyu/Library/Arduino15/packages/esp8266/tools/**",
                 "/Users/zhangxinyu/Documents/Arduino/libraries/**",
                 "/Applications/Arduino.app/Contents/Java/libraries/**",
-                "/Users/zhangxinyu/Library/Arduino15/packages/esp8266/hardware/esp8266/2.6.3/**"
+                "/Users/zhangxinyu/Library/Arduino15/packages/esp8266/hardware/esp8266/2.6.3/**",
+                "/Users/xinyu/Library/Arduino15/packages/esp8266/hardware/esp8266/2.7.3/**",
+                "/Users/xinyu/Documents/Arduino/libraries/**",
+                "/Users/xinyu/Library/Arduino15/packages/esp8266/tools/**"
             ],
             "forcedInclude": [],
             "defines": [

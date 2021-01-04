@@ -13,16 +13,34 @@ WiFiClientSecure httpsClient;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // 设置wifi接入信息(请根据您的WiFi信息进行修改)
-const char* ssid = "xinyu";
-const char* password = "jiubugaosuni1";
-//const char* host = "devapi.qweather.com";
-const char* host = "api.seniverse.com";
-// 和风天气
-//const char fingerprint[] PROGMEM = "F5 D5 33 D8 DA 35 EB E8 B0 FB F5 D5 B9 53 0B 82 E7 5C 0C AD";
+const char* SSID = "xinyu";
+const char* PASSWORD = "jiubugaosuni1";
+
 // 心知天气
-const char fingerprint[] PROGMEM = "A3 8E 27 11 BE F6 D0 2A 6E 77 CC 2D 48 AF 94 F5 CC 55 76 76";
-const int httpsPort = 443;
-int day = 0;
+const char* HOST = "api.seniverse.com";
+const char FINGERPRINT[] PROGMEM = "A3 8E 27 11 BE F6 D0 2A 6E 77 CC 2D 48 AF 94 F5 CC 55 76 76";
+const int HTTPS_PORT = 443;
+const int EXPIRE = 1800000; // 刷新时间
+
+// 按键
+const LEFT_BTN_PIN = 14;
+const OK_BTN_PIN = 12;
+const RIGHT_BTN_PIN = 13;
+const int SHORT_PRESS_TIME = 1000;
+const int LONG_PRESS_TIME  = 1000;
+int last_left_btn_state = LOW;
+int last_ok_btn_state = LOW;
+int last_right_btn_state = LOW;
+int cur_left_btn_state;
+int cur_ok_btn_state;
+int cur_right_btn_state;
+unsigned long left_btn_pressed_time = 0
+unsigned long ok_btn_pressed_time = 0
+unsigned long right_btn_pressed_time = 0
+unsigned long left_btn_released_time = 0
+unsigned long ok_btn_released_time = 0
+unsigned long right_btn_released_time = 0
+
 struct Weather {
   String date;
   String text_day;
@@ -36,7 +54,7 @@ struct Weather {
   String humidity;
 };
 
-void display_weather_page(struct Weather weather_info, int day=0) {
+void display_weather_page(struct Weather weather_info) {
   // 显示天气页
 
   /*
@@ -49,7 +67,6 @@ void display_weather_page(struct Weather weather_info, int day=0) {
   |    2021-01-02   0 |
   ---------------------
   */
-
   display.clearDisplay();
   display.setCursor(0, 0);
   display.println(weather_info.text_day);
@@ -65,13 +82,13 @@ void display_weather_page(struct Weather weather_info, int day=0) {
 
 struct Weather get_weather(int day=0) {
   //  连接Wifi
-  httpsClient.setFingerprint(fingerprint);
+  httpsClient.setFingerprint(FINGERPRINT);
   httpsClient.setTimeout(15000);
   delay(1000);
 
   Serial.println("HTTPS Connecting");
   int r = 0;
-  while ((!httpsClient.connect(host, httpsPort)) && (r < 30)) {
+  while ((!httpsClient.connect(HOST, HTTPS_PORT)) && (r < 30)) {
     delay(100);
     Serial.print(".");
     r++;
@@ -85,9 +102,9 @@ struct Weather get_weather(int day=0) {
   String query_string = "/v3/weather/daily.json?key=SwIq-1zEefmbkkHCr&location=beijing&language=en&unit=c&start=0&days=5";
 
   Serial.print("requesting URL: ");
-  Serial.println(host+query_string);
+  Serial.println(HOST+query_string);
 
-  httpsClient.print(String("GET ") + query_string + " HTTP/1.1\r\n" + "Host: " + host + "\r\n" + "Connection: close\r\n\r\n");
+  httpsClient.print(String("GET ") + query_string + " HTTP/1.1\r\n" + "Host: " + HOST + "\r\n" + "Connection: close\r\n\r\n");
 
   Serial.println("request sent");
 
@@ -100,7 +117,6 @@ struct Weather get_weather(int day=0) {
   }
 
   Serial.println("doc is:");
-  Serial.println("==========");
 
   Weather weather_info;
   Weather day1_weather_info;
@@ -145,6 +161,46 @@ struct Weather get_weather(int day=0) {
   return weather_info;
 }
 
+void change_weather_page(day=0) {
+  struct Weather weather_info = get_weather(day);
+  display_weather_page(weather_info);
+}
+
+void display_menu_page(item_index) {
+  // 展示菜单页
+  /*
+  -----------------
+  | Move & select |
+  |               |
+  |               |
+  | * Weather     |
+  | * Covid stat  |
+  |               |
+  -----------------
+  */
+  display.clearDisplay();
+  display.println("    Move & select    ");
+  display.println();
+  display.println("     %s Weather     " % (item_index == 0 ? "*" : " "));
+  display.println("     %s Covid stat  " % (item_index == 1 ? "*" : " "));
+  display.display();
+}
+
+void update_weather_page_auto(expire) {
+  // 自动更新天气
+  uint32_t now_millis = millis();
+  uint32_t millisecond = now_millis
+  while (true) {
+    if (millisecond - now_millis >= expire) {
+      now_millis = millis();
+      change_weather_page(day);
+    }
+    else {
+      millisecond = millis();
+    }
+  }
+}
+
 void setup() {
   //初始化串口设置
   Serial.begin(115200);
@@ -163,15 +219,14 @@ void setup() {
   WiFi.mode(WIFI_STA);
 
   //开始连接wifi
-  WiFi.begin(ssid, password);
+  WiFi.begin(SSID, PASSWORD);
 
   //等待WiFi连接,连接成功打印IP
   while (WiFi.status() != WL_CONNECTED) {
     display.clearDisplay();
-    display.print("Waiting...");
+    Serial.println("Waiting...");
     display.display();
     delay(1000);
-    Serial.println("Waiting...");
   }
 
   display.clearDisplay();
@@ -182,15 +237,56 @@ void setup() {
   Serial.println("");
   Serial.print("WiFi Connected!");
 
-  struct Weather weather_info = get_weather(day);
+  struct Weather weather_info = get_weather(0);
 
   Serial.println("GOT WEATHER!!!");
 
   display_weather_page(weather_info);
+
+  update_weather_page_auto(EXPIRE);
 }
 
 void loop() {
-  delay(1800000);
-  struct Weather weather_info = get_weather(0);
-  display_weather_page(weather_info);
+  cur_left_btn_state = digitalRead(LEFT_BTN_PIN);
+  cur_ok_btn_state = digitalRead(LEFT_OK_PIN);
+  cur_right_btn_state = digitalRead(RIGHT_BTN_PIN);
+
+  // 左键
+  if (last_left_btn_state == LOW && cur_left_btn_state == HIGH) {
+    left_btn_pressed_time = millis();
+  } else if (last_left_btn_state == HIGH && cur_left_btn_state == LOW) {
+    left_btn_released_time = millis();
+
+    long pressDuration = left_btn_released_time - left_btn_pressed_time;
+    if (pressDuration < SHORT_PRESS_TIME )
+      Serial.println("[LEFT] short press is detected");
+    if (pressDuration >= LONG_PRESS_TIME )
+      Serial.println("[LEFT] long press is detected");
+  }
+
+  // OK键
+  if (last_ok_btn_state == LOW && cur_ok_btn_state == HIGH) {
+    ok_btn_pressed_time = millis();
+  } else if (last_ok_btn_state == HIGH && cur_ok_btn_state == LOW) {
+    ok_btn_released_time = millis();
+
+    long pressDuration = ok_btn_released_time - ok_btn_pressed_time;
+    if (pressDuration < SHORT_PRESS_TIME )
+      Serial.println("[OK] short press is detected");
+    if (pressDuration >= LONG_PRESS_TIME )
+      Serial.println("[OK] long press is detected");
+  }
+
+  // 右键
+  if (last_right_btn_state == LOW && cur_right_btn_state == HIGH) {
+    right_btn_pressed_time = millis();
+  } else if (last_right_btn_state == HIGH && cur_right_btn_state == LOW) {
+    right_btn_released_time = millis();
+
+    long pressDuration = right_btn_released_time - right_btn_pressed_time;
+    if (pressDuration < SHORT_PRESS_TIME )
+      Serial.println("[RIGHT] short press is detected");
+    if (pressDuration >= LONG_PRESS_TIME )
+      Serial.println("[RIGHT] long press is detected");
+  }
 }

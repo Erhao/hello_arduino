@@ -14,8 +14,8 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 // 设置wifi接入信息(请根据您的WiFi信息进行修改)
-const char* ssid = "xinyu";
-const char* password = "jiubugaosuni1";
+const char* ssid = "PerfectHighSpeed";
+const char* password = "Wanmei123!";
 
 void setup() {
   //初始化串口设置
